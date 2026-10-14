@@ -1,0 +1,43 @@
+{
+  "stage1_test_AUC_ROC": 0.9998024691358025,
+  "stage2_test": {
+    "macro_F1": 0.9568267604257542,
+    "hamming_loss": 0.011428571428571429,
+    "brier": 0.01569213595025598
+  },
+  "ablation_gains": {
+    "vs_baseline_A": {
+      "baseline_F1": 0.785,
+      "relative_gain": 0.2188535031847133,
+      "target_10pct_met": true,
+      "bootstrap_95_CI_abs": [
+        0.14121104862229322,
+        0.20559947688415062
+      ]
+    },
+    "vs_baseline_B": {
+      "baseline_F1": 0.9061,
+      "relative_gain": 0.0559540889526542,
+      "target_10pct_met": false,
+      "bootstrap_95_CI_abs": [
+        0.030855823517134187,
+        0.07189153583795452
+      ]
+    }
+  },
+  "stage3": {
+    "high_cases": 133,
+    "high_correct": 133,
+    "correct_rate": 1.0
+  },
+  "chosen_params": {
+    "anomaly": {
+      "n_estimators": 100,
+      "max_samples": 64
+    },
+    "root_cause": {
+      "n_estimators": 100,
+      "max_depth": 2
+    }
+  }
+}
