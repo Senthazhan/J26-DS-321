@@ -13,13 +13,21 @@ CREATE TABLE IF NOT EXISTS activities (
     text        TEXT NOT NULL,
     meta        TEXT
 );
+
+CREATE TABLE IF NOT EXISTS stage_labels (
+    activity_id TEXT NOT NULL,
+    labeller    TEXT NOT NULL,
+    stage       TEXT NOT NULL,
+    confidence  REAL,
+    PRIMARY KEY (activity_id, labeller)
+);
 """
 
 
 def connect(path=DB_PATH):
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
-    conn.execute(SCHEMA)
+    conn.executescript(SCHEMA)
     return conn
 
 
@@ -34,3 +42,11 @@ def save_activities(conn, rows):
     conn.commit()
     after = conn.execute("SELECT COUNT(*) FROM activities").fetchone()[0]
     return after - before
+
+def save_labels(conn, labeller, labels):
+    """labels: list of (activity_id, stage, confidence). Re-running replaces old labels."""
+    conn.executemany(
+        "INSERT OR REPLACE INTO stage_labels VALUES (?, ?, ?, ?)",
+        [(aid, labeller, stage, conf) for aid, stage, conf in labels],
+    )
+    conn.commit()
