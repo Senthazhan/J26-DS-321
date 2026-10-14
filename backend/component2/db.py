@@ -43,6 +43,17 @@ CREATE TABLE IF NOT EXISTS drift_results (
 );
 
 CREATE INDEX IF NOT EXISTS ix_activities_team_ts ON activities (team_id, ts);
+
+CREATE TABLE IF NOT EXISTS role_trends (
+    team_id        TEXT NOT NULL,
+    member_id      TEXT NOT NULL,
+    week           TEXT NOT NULL,
+    stage_mix      TEXT,
+    chat           TEXT,
+    dominant_stage TEXT,
+    PRIMARY KEY (team_id, member_id, week)
+);
+
 """
 
 
@@ -123,5 +134,16 @@ def save_drift(conn, results):
         "explanation = excluded.explanation",
         [(r["team_id"], r["window_end"], r["dimension"], r["planned"], r["seen_top"],
           r["drift_score"], r["severity"], r["explanation"]) for r in results],
+    )
+    conn.commit()
+
+def save_roles(conn, rows):
+    """rows: list of dicts from role_tracker. Re-running replaces old results."""
+    conn.executemany(
+        "INSERT INTO role_trends VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT (team_id, member_id, week) DO UPDATE "
+        "SET stage_mix = excluded.stage_mix, chat = excluded.chat, dominant_stage = excluded.dominant_stage",
+        [(r["team_id"], r["member_id"], r["week"], json.dumps(r["stage_mix"]), json.dumps(r["chat"]),
+          r["dominant_stage"]) for r in rows],
     )
     conn.commit()

@@ -19,6 +19,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 LABEL_DIR = DATA_DIR / "labelling"                   # rater CSV files
 MODEL_DIR = DATA_DIR / "models"                      # trained model + cached embeddings
 BLUEPRINT_DIR = DATA_DIR / "blueprints"              # one blueprint JSON per team
+CHAT_DIR = DATA_DIR / "chat"                         # one chat CSV per team
 
 # Secret word mixed into member codes so nobody can reverse them
 ANON_SALT = "change-this-to-any-secret-word"
