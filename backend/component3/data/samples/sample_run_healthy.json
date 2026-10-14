@@ -1,0 +1,139 @@
+{
+ "run_id": "sample_healthy",
+ "epochs": [
+  {
+   "epoch": 1,
+   "train_accuracy": 0.0075,
+   "val_accuracy": 0.0,
+   "loss": 2.0623,
+   "gpu_utilization_pct": 78.61,
+   "commits_that_day": 0
+  },
+  {
+   "epoch": 2,
+   "train_accuracy": 0.146,
+   "val_accuracy": 0.1265,
+   "loss": 1.71,
+   "gpu_utilization_pct": 74.95,
+   "commits_that_day": 1
+  },
+  {
+   "epoch": 3,
+   "train_accuracy": 0.2326,
+   "val_accuracy": 0.2145,
+   "loss": 1.3884,
+   "gpu_utilization_pct": 76.15,
+   "commits_that_day": 2
+  },
+  {
+   "epoch": 4,
+   "train_accuracy": 0.337,
+   "val_accuracy": 0.3238,
+   "loss": 1.1308,
+   "gpu_utilization_pct": 78.42,
+   "commits_that_day": 0
+  },
+  {
+   "epoch": 5,
+   "train_accuracy": 0.4341,
+   "val_accuracy": 0.4019,
+   "loss": 0.9322,
+   "gpu_utilization_pct": 68.77,
+   "commits_that_day": 1
+  },
+  {
+   "epoch": 6,
+   "train_accuracy": 0.4998,
+   "val_accuracy": 0.4813,
+   "loss": 0.7988,
+   "gpu_utilization_pct": 72.06,
+   "commits_that_day": 4
+  },
+  {
+   "epoch": 7,
+   "train_accuracy": 0.5621,
+   "val_accuracy": 0.5464,
+   "loss": 0.6673,
+   "gpu_utilization_pct": 59.19,
+   "commits_that_day": 2
+  },
+  {
+   "epoch": 8,
+   "train_accuracy": 0.604,
+   "val_accuracy": 0.5875,
+   "loss": 0.5541,
+   "gpu_utilization_pct": 58.44,
+   "commits_that_day": 0
+  },
+  {
+   "epoch": 9,
+   "train_accuracy": 0.6638,
+   "val_accuracy": 0.6385,
+   "loss": 0.4405,
+   "gpu_utilization_pct": 75.05,
+   "commits_that_day": 2
+  },
+  {
+   "epoch": 10,
+   "train_accuracy": 0.6988,
+   "val_accuracy": 0.6751,
+   "loss": 0.3852,
+   "gpu_utilization_pct": 69.13,
+   "commits_that_day": 1
+  },
+  {
+   "epoch": 11,
+   "train_accuracy": 0.7222,
+   "val_accuracy": 0.698,
+   "loss": 0.323,
+   "gpu_utilization_pct": 71.96,
+   "commits_that_day": 3
+  },
+  {
+   "epoch": 12,
+   "train_accuracy": 0.7586,
+   "val_accuracy": 0.7343,
+   "loss": 0.276,
+   "gpu_utilization_pct": 77.95,
+   "commits_that_day": 2
+  },
+  {
+   "epoch": 13,
+   "train_accuracy": 0.7738,
+   "val_accuracy": 0.7324,
+   "loss": 0.2489,
+   "gpu_utilization_pct": 74.04,
+   "commits_that_day": 2
+  },
+  {
+   "epoch": 14,
+   "train_accuracy": 0.779,
+   "val_accuracy": 0.7631,
+   "loss": 0.203,
+   "gpu_utilization_pct": 71.61,
+   "commits_that_day": 4
+  },
+  {
+   "epoch": 15,
+   "train_accuracy": 0.8069,
+   "val_accuracy": 0.7921,
+   "loss": 0.1852,
+   "gpu_utilization_pct": 71.78,
+   "commits_that_day": 2
+  },
+  {
+   "epoch": 16,
+   "train_accuracy": 0.8069,
+   "val_accuracy": 0.795,
+   "loss": 0.1509,
+   "gpu_utilization_pct": 64.12,
+   "commits_that_day": 2
+  }
+ ],
+ "context": {
+  "drift_severity_score": 0.174,
+  "hyperparam_tuning_logged": 1.0,
+  "commit_gap_days": 0.27,
+  "notebook_edit_freq_per_day": 7.14
+ }
+}
