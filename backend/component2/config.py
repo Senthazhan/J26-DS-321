@@ -8,6 +8,8 @@ CANDIDATES_FILE = DATA_DIR / "candidate_repos.json"  # made by search_repos.py
 CLONE_DIR = DATA_DIR / "clones"                      # temporary clones
 RAW_DATA_DIR = DATA_DIR / "raw_data"                 # made by extract_repos.py
 DB_PATH = DATA_DIR / "c2.db"                         # our database
+LABEL_DIR = DATA_DIR / "labelling"                   # rater CSV files
+MODEL_DIR = DATA_DIR / "models"                      # trained model + cached embeddings
 
 # Secret word mixed into member codes so nobody can reverse them
 ANON_SALT = "change-this-to-any-secret-word"
