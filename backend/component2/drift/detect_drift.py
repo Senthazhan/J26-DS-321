@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 
 from component2.config import BLUEPRINT_DIR
 from component2.db import connect, save_drift
-from component2.drift.mentions import count_mentions
+from component2.drift.mentions import count_mentions, find_mentions, normalise_target
 from component2.embedder import embed
 
 DIMENSIONS = ("target", "algorithm", "metric")
@@ -57,8 +57,13 @@ def load_or_infer_blueprint(team_id, rows):
                     encoding="utf-8")
     return planned, "inferred"
 
+def planned_names(dim, planned):
+    """The plan in the same short form as mentions, e.g. 'Random Forest Classifier' -> {'random forest'}."""
+    if dim == "target":
+        return {normalise_target(planned)}
+    return set(find_mentions(planned)[dim])
 
-def score_dimension(planned, seen: Counter):
+def score_dimension(dim, planned, seen: Counter):
     """Returns (drift_score, severity, top_seen_term, explanation)."""
     if not planned:
         return None, "no_plan", None, "Blueprint has no value for this decision."
@@ -69,7 +74,9 @@ def score_dimension(planned, seen: Counter):
     vectors = embed([planned] + terms)
     sims = vectors[1:] @ vectors[0]                    # cosine similarity (vectors are normalised)
     total = sum(seen.values())
-    off_plan = {t: seen[t] for t, s in zip(terms, sims) if s < MATCH_AT}
+    known = planned_names(dim, planned)
+    # on plan = same short name, OR close enough in meaning (MiniLM)
+    off_plan = {t: seen[t] for t, s in zip(terms, sims) if t not in known and s < MATCH_AT}
     score = round(sum(off_plan.values()) / total, 3)
     sev = severity_of(score)
     top = seen.most_common(1)[0][0]
@@ -94,7 +101,7 @@ def detect_team(conn, team_id, days):
 
     results = []
     for dim in DIMENSIONS:
-        score, sev, top, why = score_dimension(planned[dim], seen[dim])
+        score, sev, top, why = score_dimension(dim, planned[dim], seen[dim])
         results.append({"team_id": team_id, "window_end": rows[-1][0], "dimension": dim,
                         "planned": planned[dim], "seen_top": top, "drift_score": score,
                         "severity": sev, "explanation": why, "blueprint": bp_source})

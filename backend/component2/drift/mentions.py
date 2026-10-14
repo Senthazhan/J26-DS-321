@@ -32,7 +32,7 @@ METRICS = {
     "accuracy": [r"\baccuracy", r"accuracy_score"],
     "f1-score": [r"\bf1\b", r"f1[_\- ]?score"],
     "precision": [r"\bprecision"],
-    "recall": [r"\brecall\b"],
+    "recall": [r"\brecall(?:_score)?\b"],
     "roc auc": [r"\bauc\b", r"\broc\b", r"roc_auc"],
     "rmse": [r"\brmse\b", r"root\s*mean\s*squared"],
     "mse": [r"\bmse\b", r"mean_squared_error"],
@@ -56,6 +56,9 @@ _compiled = {
 }
 _target = [re.compile(p, re.I) for p in TARGET_PATTERNS]
 
+def normalise_target(name):
+    """'Sale Price', 'sale_price', 'SalePrice' -> 'saleprice' so they compare equal."""
+    return re.sub(r"[\s_\-]", "", name.strip().lower())
 
 def find_mentions(text):
     """Returns {'target': Counter, 'algorithm': Counter, 'metric': Counter} for one text."""
@@ -66,7 +69,7 @@ def find_mentions(text):
                 found[dim][name] += 1
     for p in _target:
         for m in p.findall(text):
-            found["target"][m.strip().lower()] += 1
+            found["target"][normalise_target(m)] += 1
     return found
 
 
