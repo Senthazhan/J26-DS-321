@@ -86,13 +86,18 @@ class Connection:
     def commit(self):
         self.raw.commit()
 
+    def close(self):
+        self.raw.close()
 
-def connect():
+
+def connect(create_tables=True):
+    """create_tables=False skips the CREATE TABLE step (faster for the API, tables already exist)."""
     conn = Connection()
-    for statement in SCHEMA.split(";"):
-        if statement.strip():
-            conn.execute(statement)
-    conn.commit()
+    if create_tables:
+        for statement in SCHEMA.split(";"):
+            if statement.strip():
+                conn.execute(statement)
+        conn.commit()
     return conn
 
 
