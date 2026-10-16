@@ -3,9 +3,10 @@
 import { useMemo } from "react";
 
 import PlotlyChart from "./PlotlyChart";
+import RolesCard from "./RolesCard";
 import styles from "./c2.module.css";
 import {
-  SEVERITY_STYLE, STAGE_LABEL, memberMixChart, roleHistoryText, stageBreakdownChart,
+  SEVERITY_STYLE, STAGE_LABEL, roleHistoryText, stageBreakdownChart,
 } from "./charts";
 import type { Severity, Summary } from "./types";
 
@@ -28,7 +29,7 @@ export default function Dashboard({ summary }: { summary: Summary }) {
     () => stageBreakdownChart(summary.stage_breakdown, summary.lagging_stages, mode),
     [summary, mode],
   );
-  const mixChart = useMemo(() => memberMixChart(summary.members, mode), [summary, mode]);
+
 
   return (
     <div className={styles.grid}>
@@ -64,14 +65,10 @@ export default function Dashboard({ summary }: { summary: Summary }) {
         <PlotlyChart data={stageChart.data} layout={stageChart.layout} ariaLabel="Bar chart of work share per lifecycle stage" />
       </section>
 
-      <section className={styles.card} aria-labelledby="mix-title">
-        <h2 id="mix-title" className={styles.cardTitle}>What each member works on</h2>
-        <p className={styles.cardNote}>Smoothed share of each member&apos;s recent work per stage. Hover a segment for the exact value.</p>
-        <PlotlyChart data={mixChart.data} layout={mixChart.layout} ariaLabel="Stacked bar chart of each member's work per stage" />
-      </section>
+      <RolesCard teamId={summary.team_id} />
 
       <section className={styles.card} aria-labelledby="roles-title">
-        <h2 id="roles-title" className={styles.cardTitle}>Roles over time and team talk</h2>
+        <h2 id="roles-title" className={styles.cardTitle}>Role changes over time and team talk</h2>
         <p className={styles.cardNote}>
           Current role = biggest smoothed stage share. Chat measures follow Group Communication Analysis
           (chat data is simulated for these public repositories).

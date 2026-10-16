@@ -5,7 +5,7 @@ Kept separate from the web code (router.py) so it can be tested and reused
 without running a server.
 """
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
 from component2.config import STAGES
@@ -119,3 +119,54 @@ def team_summary(conn, team_id, days=30):
         "drift": drift(conn, team_id),
         "members": members(conn, team_id),
     }
+
+# ---------- Role snapshots over different time windows ----------
+
+WINDOWS = {"3d": 3, "7d": 7, "30d": 30, "all": None}
+CHAT_WEIGHT = 0.5      # a chat message about a stage counts half as much as a commit / notebook edit
+MAIN_ROLE_SHARE = 0.25  # stages with >= 25% of a member's work are listed as their main roles
+
+
+def _shares(counter):
+    total = sum(counter[s] for s in STAGES)
+    return {s: round(counter[s] / total, 3) if total else 0.0 for s in STAGES}
+
+
+def member_roles(conn, team_id, window="7d"):
+    """Every member's mix of ALL stages in one window (3 days, 7 days, 30 days or the whole project),
+    using code (commits + notebook cells) AND chat. Chat is shown separately and counts at half weight,
+    because talking about a stage is weaker evidence than doing it."""
+    rows = conn.execute("SELECT activity_id, member_id, source, ts FROM activities WHERE team_id = ? "
+                        "ORDER BY ts", (team_id,)).fetchall()
+    if not rows:
+        return None
+    end = _parse(rows[-1][3])
+    days = WINDOWS[window]
+    start = end - timedelta(days=days) if days else _parse(rows[0][3])
+    labels = _labels_for_team(conn, team_id)
+
+    code, chat = defaultdict(Counter), defaultdict(Counter)
+    members = sorted({m for _, m, _, _ in rows if m})
+    for aid, member, source, ts in rows:
+        if not member or _parse(ts) < start:
+            continue
+        stage = labels.get(aid)
+        if stage in STAGES:
+            (chat if source == "chat" else code)[member][stage] += 1
+
+    result = []
+    for m in members:
+        combined = Counter()
+        for s in STAGES:
+            combined[s] = code[m][s] + CHAT_WEIGHT * chat[m][s]
+        mix = _shares(combined)
+        ranked = sorted((s for s in STAGES if mix[s] > 0), key=mix.get, reverse=True)
+        main = [s for s in ranked if mix[s] >= MAIN_ROLE_SHARE] or ranked[:1]
+        n_code, n_chat = sum(code[m].values()), sum(chat[m].values())
+        evidence = "none" if n_code + n_chat == 0 else ("low" if n_code + n_chat < 3 else "ok")
+        result.append({"member_id": m, "code_items": n_code, "chat_items": n_chat,
+                       "combined_mix": mix, "code_mix": _shares(code[m]), "chat_mix": _shares(chat[m]),
+                       "main_roles": main, "evidence": evidence})
+    return {"team_id": team_id, "window": window,
+            "start": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "end": rows[-1][3],
+            "chat_weight": CHAT_WEIGHT, "members": result}

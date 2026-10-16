@@ -35,3 +35,23 @@ export interface TeamInfo {
   first_activity: string;
   last_activity: string;
 }
+
+export interface WindowMember {
+  member_id: string;
+  code_items: number;
+  chat_items: number;
+  combined_mix: Record<string, number>;
+  code_mix: Record<string, number>;
+  chat_mix: Record<string, number>;
+  main_roles: string[];
+  evidence: "none" | "low" | "ok";
+}
+
+export interface WindowRoles {
+  team_id: string;
+  window: "3d" | "7d" | "30d" | "all";
+  start: string;
+  end: string;
+  chat_weight: number;
+  members: WindowMember[];
+}

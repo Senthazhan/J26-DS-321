@@ -7,6 +7,7 @@ Step 5a: Component 2's web API (FR08). All addresses start with /c2.
   GET /c2/teams/{team_id}/drift           -> drift only
   GET /c2/teams/{team_id}/members         -> role vectors + role history
   GET /c2/teams/{team_id}/stages/daily    -> activity per stage per day (for C3)
+  GET /c2/teams/{team_id}/roles?window=7d -> every member's stage mix in a window (3d, 7d, 30d, all)
 
 Every request opens its own database connection and closes it at the end.
 """
@@ -71,3 +72,10 @@ def stages_daily(team_id: str, days: int = Query(30, ge=1, le=365)):
     with db() as conn:
         _known_team(conn, team_id)
         return service.daily_stage_counts(conn, team_id, days)
+
+@router.get("/teams/{team_id}/roles")
+def roles(team_id: str, window: str = Query("7d", pattern="^(3d|7d|30d|all)$",
+                                            description="3d, 7d, 30d or all (whole project)")):
+    with db() as conn:
+        _known_team(conn, team_id)
+        return service.member_roles(conn, team_id, window)

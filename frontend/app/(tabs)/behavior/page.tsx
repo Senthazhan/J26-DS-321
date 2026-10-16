@@ -8,11 +8,10 @@
 // Behavior tab (Component 2): open http://localhost:3000/behavior
 import { useEffect, useState } from "react";
 
+import { API } from "./api";
 import Dashboard from "./Dashboard";
 import styles from "./c2.module.css";
 import type { Summary, TeamInfo } from "./types";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 export default function BehaviorPage() {
   const [teams, setTeams] = useState<TeamInfo[]>([]);

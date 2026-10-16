@@ -55,3 +55,11 @@
 .driftItem::marker, .memberItem::marker { content: ""; }
 .driftItem::before, .memberItem::before { content: none; }
 .driftList, .memberList { list-style: none; padding-left: 0; }
+
+.segmented { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.segment, .segmentOn {
+  font: inherit; font-size: 0.85rem; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-0); color: var(--text-secondary);
+}
+.segmentOn { background: var(--text-primary); border-color: var(--text-primary); color: var(--surface-1); font-weight: 600; }
+.segment:focus-visible, .segmentOn:focus-visible { outline: 2px solid #2a78d6; outline-offset: 2px; }

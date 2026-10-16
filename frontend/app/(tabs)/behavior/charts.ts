@@ -1,5 +1,5 @@
 // Turns API data into Plotly chart settings. No React here, so it is easy to test.
-import type { Member, Severity } from "./types";
+import type { Member, Severity, WindowMember } from "./types";
 
 export const STAGES = [
   "data_cleaning", "eda", "feature_engineering", "model_development",
@@ -125,4 +125,41 @@ export function roleHistoryText(trend: Member["role_trend"]): string {
     }
   }
   return changes.length ? changes.join(" → ") : "–";
+}
+
+/** Chart 3: every member's mix of ALL stages in the chosen window (code + chat combined). */
+export function windowMixChart(members: WindowMember[], mode: Mode) {
+  const t = THEME[mode];
+  const names = members.map((m) => m.member_id);
+  const data = STAGES.map((stage) => ({
+    type: "bar",
+    orientation: "h",
+    name: STAGE_LABEL[stage],
+    y: names,
+    x: members.map((m) => m.combined_mix?.[stage] ?? 0),
+    marker: { color: stageColor(stage, mode), line: { color: t.surface, width: 2 } },
+    hovertemplate: `%{y}<br>${STAGE_LABEL[stage]}: %{x:.0%}<extra></extra>`,
+  }));
+  return {
+    data,
+    layout: {
+      ...baseLayout(mode),
+      barmode: "stack",
+      height: Math.max(220, 110 + members.length * 40),
+      margin: { l: 10, r: 10, t: 10, b: 30 },
+      bargap: 0.35,
+      xaxis: { tickformat: ".0%", range: [0, 1], gridcolor: t.grid, zeroline: false },
+      yaxis: { automargin: true },
+      legend: { orientation: "h", y: -0.2, yanchor: "top", traceorder: "normal", font: { color: t.muted, size: 11 } },
+    },
+  };
+}
+
+/** "Model development 60%, EDA 30%" - the top stages of a mix, as text. */
+export function topStagesText(mix: Record<string, number>, limit = 3): string {
+  const top = STAGES.filter((s) => (mix[s] ?? 0) > 0)
+    .sort((a, b) => mix[b] - mix[a])
+    .slice(0, limit)
+    .map((s) => `${STAGE_LABEL[s]} ${Math.round(mix[s] * 100)}%`);
+  return top.length ? top.join(", ") : "–";
 }
