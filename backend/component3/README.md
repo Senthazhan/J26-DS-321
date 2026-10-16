@@ -15,6 +15,7 @@ The trained models are compared with rule-based baselines in an ablation study.
 ```
 component3/
   train_pipeline.py        runs everything and saves models + results
+  predict_live.py          scores ONE new run and returns the result as JSON
   common/                  shared parts
     config.py                paths, seed, names of signals and causes
     splits.py                train / val / test split by run (70/15/15)
@@ -29,6 +30,7 @@ component3/
     baseline.py              rule-based baselines A and B
     ablation.py              baseline vs ML comparison + feature ablations
   data/                    the datasets, splits.csv, real reference sample
+    samples/                 two example run inputs for predict_live.py
   models/                  saved models (created by train_pipeline)
   results/                 metrics and per-run outputs (created by train_pipeline)
   scripts/                 generate_dataset.py, ks_validation.py
@@ -52,6 +54,22 @@ python backend/component3/scripts/ks_validation.py
 
 Do **not** re-run `scripts/generate_dataset.py` unless you want to rebuild the data: it overwrites the CSVs in `data/`.
 
+## Score a single run (live prototype)
+
+After training (models must exist in `models/`), score one run from its numbers:
+
+```
+python -m backend.component3.predict_live --run backend/component3/data/samples/sample_run_overfitting.json
+python -m backend.component3.predict_live --demo run_00501
+```
+
+Add `--log` to also append the result to `results/issue_history.jsonl` (the per-run issue history for Component 4).
+From Python: `from backend.component3.predict_live import predict_run`.
+
+**Input:** the 5 signals for every epoch (`train_accuracy`, `val_accuracy`, `loss`, `gpu_utilization_pct`, `commits_that_day`) plus 4 context values (`drift_severity_score` from Component 2, `hyperparam_tuning_logged`, `commit_gap_days`, `notebook_edit_freq_per_day`). See the top of `predict_live.py` for the exact format.
+**Output (JSON):** anomaly score, a probability for each cause, severity score and level, a short `title` and one-line `evidence` (for an alert card), recommended cause and advice. The field names are a first draft (`schema_version` 0.1-draft) and can be renamed to match Component 4 and the frontend.
+A call takes well under 1 second (requirement: under 5 seconds), and the live path reproduces the batch results (same severity level for all 210 test runs).
+
 ## Results (test split, 210 runs)
 
 | Check | Result | Target |
@@ -71,8 +89,8 @@ Do **not** re-run `scripts/generate_dataset.py` unless you want to rebuild the d
 - The KS test uses only 6 real values from a different task, so it is a basic realism check.
 - Removing the anomaly score or the drift score from the Stage 2 inputs did not change its results on this data.
 - `drift_severity_score` (from Component 2) is a simulated feature that separates classes very easily.
-- Runs use the CSV files; live collection from MLflow / W&B / Git is future work.
+- `predict_live.py` scores a run that is handed to it; automatic collection of the signals from MLflow / W&B / Git (FR1) is not built yet.
 
 ## Status
 
-Stages 1-3, the baselines and the ablation study are finished. The live prototype (`predict_live.py`) and the JSON contract for Component 4 are still to be added.
+Stages 1-3, the baselines, the ablation study and the single-run prototype (`predict_live.py`) are finished. The data collector (FR1) and the final JSON contract with Component 4 / the frontend are still to be done.
