@@ -12,12 +12,17 @@ Step 2d: The main lifecycle classifier (FR04).
 Run from backend:
     python -m component2.classify.train_model
 """
+import json
+
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, f1_score
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_val_predict
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 import joblib
 
+from component2.classify.keyword_baseline import PATTERNS
 from component2.config import MODEL_DIR
 from component2.db import connect, save_labels
 
@@ -50,10 +55,36 @@ def get_embeddings(conn):
     return ids, vectors
 
 
+SOURCES = ("commit", "notebook_cell", "chat")
+
+
+def structure_features(conn, ids):
+    """Small extra signals the text embedding cannot see well:
+    where the text came from, whether a notebook cell is markdown, and the keyword-clue counts."""
+    info = {aid: (source, json.loads(meta or "{}").get("cell_type"), text)
+            for aid, source, meta, text in conn.execute("SELECT activity_id, source, meta, text FROM activities").fetchall()}
+    rows = []
+    for aid in ids:
+        source, cell_type, text = info[aid]
+        hits = [sum(1 for p in pats if p.search(text)) for pats in PATTERNS.values()]
+        rows.append([source == s for s in SOURCES] + [cell_type == "markdown", len(text) < 40] + hits)
+    return np.array(rows, dtype=float)
+
+
+def make_classifier():
+    """Scale features, then Logistic Regression; the regularisation strength C is chosen
+    by an inner 3-fold search on the training part of each fold (so the test fold stays unseen)."""
+    pipe = Pipeline([("scale", StandardScaler()),
+                     ("clf", LogisticRegression(max_iter=5000, class_weight="balanced"))])
+    return GridSearchCV(pipe, {"clf__C": [0.01, 0.03, 0.1, 0.3, 1.0, 3.0]}, scoring="f1_macro",
+                        cv=StratifiedKFold(3, shuffle=True, random_state=0))
+
+
 def main():
     conn = connect()
     ids, vectors = get_embeddings(conn)
     row_of = {aid: n for n, aid in enumerate(ids)}
+    extra = structure_features(conn, ids)
 
     gold = dict(conn.execute("SELECT activity_id, stage FROM stage_labels WHERE labeller='gold'").fetchall())
     baseline = dict(conn.execute("SELECT activity_id, stage FROM stage_labels WHERE labeller='baseline'").fetchall())
@@ -62,29 +93,40 @@ def main():
         print(f"Only {len(gold_ids)} gold labels - run load_ratings first.")
         return
 
-    X = vectors[[row_of[i] for i in gold_ids]]
+    rows_gold = [row_of[i] for i in gold_ids]
+    X_text = vectors[rows_gold]                                   # MiniLM only
+    X_full = np.hstack([vectors, extra])                          # MiniLM + structure signals
     y = np.array([gold[i] for i in gold_ids])
-    clf = LogisticRegression(max_iter=2000, class_weight="balanced")
 
     # Fair test: each item is predicted by a model that never saw it
     n_splits = max(2, min(5, int(np.unique(y, return_counts=True)[1].min())))
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-    y_pred = cross_val_predict(clf, X, y, cv=cv)
     y_base = np.array([baseline.get(i, "other") for i in gold_ids])
+    y_text = cross_val_predict(LogisticRegression(max_iter=2000, class_weight="balanced"), X_text, y, cv=cv)
+    y_pred = cross_val_predict(make_classifier(), X_full[rows_gold], y, cv=cv)
 
-    f1_model = f1_score(y, y_pred, average="macro", zero_division=0)
-    f1_base = f1_score(y, y_base, average="macro", zero_division=0)
     print(f"\nGold items: {len(gold_ids)}   ({n_splits}-fold cross-validation)")
-    print(f"Macro F1  keyword baseline : {f1_base:.3f}")
-    print(f"Macro F1  MiniLM + LogReg  : {f1_model:.3f}   (target >= 0.75)")
-    print("\nPer-stage results for the model:")
+    print(f"Macro F1  keyword baseline              : {f1_score(y, y_base, average='macro', zero_division=0):.3f}")
+    print(f"Macro F1  MiniLM + LogReg (text only)   : {f1_score(y, y_text, average='macro', zero_division=0):.3f}")
+    print(f"Macro F1  MiniLM + structure + tuned C  : {f1_score(y, y_pred, average='macro', zero_division=0):.3f}   (target >= 0.75)")
+    print(f"Accuracy  final model                   : {np.mean(y_pred == y):.3f}")
+
+    # Human ceiling: how well does one rater "predict" the other? A model can hardly beat this.
+    r1 = dict(conn.execute("SELECT activity_id, stage FROM stage_labels WHERE labeller='rater1'").fetchall())
+    r2 = dict(conn.execute("SELECT activity_id, stage FROM stage_labels WHERE labeller='rater2'").fetchall())
+    both = [i for i in r1 if i in r2]
+    if both:
+        human = f1_score([r1[i] for i in both], [r2[i] for i in both], average="macro", zero_division=0)
+        print(f"Macro F1  rater 1 vs rater 2 (human ceiling): {human:.3f}")
+    print("\nPer-stage results for the final model:")
     print(classification_report(y, y_pred, zero_division=0))
 
     # Final model: train on all gold labels, then label every activity
-    clf.fit(X, y)
+    clf = make_classifier().fit(X_full[rows_gold], y)
+    print(f"Chosen C: {clf.best_params_['clf__C']}")
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(clf, MODEL_DIR / "stage_classifier.joblib")
-    probs = clf.predict_proba(vectors)
+    probs = clf.predict_proba(X_full)
     stages = clf.classes_[probs.argmax(axis=1)]
     conf = probs.max(axis=1)
     save_labels(conn, "model", [(ids[n], stages[n], round(float(conf[n]), 3)) for n in range(len(ids))])
