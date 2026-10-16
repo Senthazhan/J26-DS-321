@@ -21,6 +21,8 @@ MODEL_DIR = DATA_DIR / "models"                      # trained model + cached em
 BLUEPRINT_DIR = DATA_DIR / "blueprints"              # one blueprint JSON per team
 CHAT_DIR = DATA_DIR / "chat"                         # one chat CSV per team
 
+ALIAS_DIR = DATA_DIR / "aliases"                     # optional: which names/emails are the same person
+
 # Secret word mixed into member codes so nobody can reverse them
 ANON_SALT = "change-this-to-any-secret-word"
 

@@ -31,7 +31,7 @@ ALGORITHMS = {
 METRICS = {
     "accuracy": [r"\baccuracy", r"accuracy_score"],
     "f1-score": [r"\bf1\b", r"f1[_\- ]?score"],
-    "precision": [r"\bprecision"],
+    "precision": [r"(?<!average[\s_])\bprecision"],     # not "(mean) average precision" = mAP
     "recall": [r"\brecall(?:_score)?\b"],
     "roc auc": [r"\bauc\b", r"\broc\b", r"roc_auc"],
     "rmse": [r"\brmse\b", r"root\s*mean\s*squared"],
@@ -39,7 +39,8 @@ METRICS = {
     "mae": [r"\bmae\b", r"mean_absolute_error", r"mean\s*absolute\s*error"],
     "r2": [r"\br2\b", r"r2_score", r"r-squared"],
     "log loss": [r"log\s*loss", r"log_loss"],
-    "map": [r"\bmAP\b"],
+    # (?-i:...) = case-sensitive, so pandas .map( and the word "map" are not counted as the metric
+    "map": [r"(?-i:\bmAP(?![a-z]))", r"average[\s_]precision"],    # also mAP50, mAP@0.5
     "iou": [r"\bIoU\b"],
 }
 

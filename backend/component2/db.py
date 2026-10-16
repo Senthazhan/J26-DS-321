@@ -56,16 +56,27 @@ CREATE TABLE IF NOT EXISTS role_trends (
 
 """
 
+_warned_sqlite = False          # print the "using SQLite" note only once per run
+
 
 class Connection:
     """Gives SQLite and PostgreSQL the same methods, so no other file needs to care."""
 
     def __init__(self, url=DATABASE_URL):
+        url = url.strip()
         self.is_postgres = url.startswith(("postgresql://", "postgres://"))
+        if url and not self.is_postgres:
+            # A typo here used to fall back to the old local SQLite file without any warning
+            raise ValueError("DATABASE_URL in backend/.env must start with postgresql:// or postgres:// "
+                             "(leave it empty to use the local SQLite file).")
         if self.is_postgres:
             import psycopg                      # pip install "psycopg[binary]"
             self.raw = psycopg.connect(url)
         else:
+            global _warned_sqlite
+            if not _warned_sqlite:
+                print(f"NOTE: DATABASE_URL is empty - using local SQLite file {DB_PATH}")
+                _warned_sqlite = True
             DB_PATH.parent.mkdir(parents=True, exist_ok=True)
             self.raw = sqlite3.connect(DB_PATH)
 
@@ -106,11 +117,14 @@ def count_rows(conn, table):
 
 
 def save_activities(conn, rows):
-    """Adds new activities; ones already saved are skipped. Returns how many were new."""
+    """Adds new activities; ones already saved are updated (e.g. re-dated notebook cells).
+    Returns how many were new."""
     before = count_rows(conn, "activities")
     conn.executemany(
         "INSERT INTO activities VALUES (?, ?, ?, ?, ?, ?, ?) "
-        "ON CONFLICT (activity_id) DO NOTHING",
+        "ON CONFLICT (activity_id) DO UPDATE "
+        "SET member_id = excluded.member_id, ts = excluded.ts, "
+        "text = excluded.text, meta = excluded.meta",
         [(r["activity_id"], r["team_id"], r["source"], r["member_id"],
           r["ts"], r["text"], json.dumps(r["meta"])) for r in rows],
     )
