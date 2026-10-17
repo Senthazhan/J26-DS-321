@@ -25,6 +25,7 @@ from component2.config import BLUEPRINT_DIR
 from component2.db import connect, save_drift
 from component2.drift.mentions import count_mentions, find_mentions, normalise_target
 from component2.embedder import embed
+from component2.research_teams import research_team_ids
 
 DIMENSIONS = ("target", "algorithm", "metric")
 MATCH_AT = 0.75                 # cosine similarity needed to count as "same thing"
@@ -89,11 +90,15 @@ def score_dimension(dim, planned, seen: Counter):
     return score, sev, top, why
 
 
-def detect_team(conn, team_id, days):
+def detect_team(conn, team_id, days, planned=None):
+    """planned: {dimension: value} from the app's blueprint (real teams). None = file or inferred (research)."""
     rows = conn.execute("SELECT ts, text FROM activities WHERE team_id = ? ORDER BY ts", (team_id,)).fetchall()
     if not rows:
         return []
-    planned, bp_source = load_or_infer_blueprint(team_id, rows)
+    if planned is None:
+        planned, bp_source = load_or_infer_blueprint(team_id, rows)
+    else:
+        bp_source = "app"
     window_end = parse_ts(rows[-1][0])
     window_start = window_end - timedelta(days=days)
     recent = [text for ts, text in rows if parse_ts(ts) >= window_start]
@@ -115,8 +120,7 @@ def main():
     args = ap.parse_args()
 
     conn = connect()
-    teams = [args.team] if args.team else [t for (t,) in conn.execute(
-        "SELECT DISTINCT team_id FROM activities ORDER BY team_id").fetchall()]
+    teams = [args.team] if args.team else research_team_ids(conn)   # real teams: buddy.sync
     for team in teams:
         results = detect_team(conn, team, args.days)
         save_drift(conn, results)

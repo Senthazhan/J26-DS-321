@@ -15,6 +15,7 @@ from collections import defaultdict
 
 from component2.config import DATA_DIR
 from component2.db import connect
+from component2.research_teams import research_team_ids
 
 SAMPLE_SIZE = 320      # a few extra in case some items get dropped
 MIN_TEXT_LEN = 15      # skip tiny items like "wip" or "x = 1"
@@ -23,7 +24,9 @@ OUT_DIR = DATA_DIR / "labelling"
 
 
 def load_candidates(conn):
-    rows = conn.execute("SELECT activity_id, team_id, source, text FROM activities").fetchall()
+    research = set(research_team_ids(conn))        # only Phase 1 research teams are rated
+    rows = [r for r in conn.execute("SELECT activity_id, team_id, source, text FROM activities").fetchall()
+            if r[1] in research]
     pools = defaultdict(list)      # (team_id, source) -> items
     for activity_id, team_id, source, text in rows:
         if len(text.strip()) >= MIN_TEXT_LEN:

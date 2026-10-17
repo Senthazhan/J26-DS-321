@@ -3,7 +3,8 @@
 // Uses code AND chat, so a member with only 2-3 commits still shows what they contributed.
 import { useEffect, useMemo, useState } from "react";
 
-import { API } from "./api";
+import { api } from "@/lib/api";
+import MemberName from "./MemberName";
 import PlotlyChart from "./PlotlyChart";
 import styles from "./c2.module.css";
 import { STAGE_LABEL, topStagesText, windowMixChart } from "./charts";
@@ -16,20 +17,22 @@ const WINDOWS = [
   { key: "all", label: "Whole project" },
 ] as const;
 
-export default function RolesCard({ teamId }: { teamId: string }) {
+export default function RolesCard({ teamId, names = {}, version = 0 }: { teamId: string; names?: Record<string, string>; version?: number }) {
   const [windowKey, setWindowKey] = useState<string>("7d");
   const [data, setData] = useState<WindowRoles | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    fetch(`${API}/c2/teams/${encodeURIComponent(teamId)}/roles?window=${windowKey}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`API error ${r.status}`))))
-      .then((d: WindowRoles) => setData(d))
+    api<WindowRoles>(`/app/teams/${encodeURIComponent(teamId)}/behavior/roles?window=${windowKey}`)
+      .then((d) => setData(d))
       .catch((e: Error) => setError(e.message));
-  }, [teamId, windowKey]);
+  }, [teamId, windowKey, version]);
 
-  const chart = useMemo(() => (data ? windowMixChart(data.members, "light") : null), [data]);
+  const chart = useMemo(
+    () => (data ? windowMixChart(data.members.map((m) => ({ ...m, member_id: names[m.member_id] ?? m.member_id })), "light") : null),
+    [data, names],
+  );
   const active = data?.members.filter((m) => m.evidence !== "none") ?? [];
   const idle = data?.members.filter((m) => m.evidence === "none") ?? [];
 
@@ -62,7 +65,7 @@ export default function RolesCard({ teamId }: { teamId: string }) {
             {active.map((m) => (
               <li key={m.member_id} className={styles.memberItem}>
                 <div className={styles.memberHead}>
-                  <span className={styles.mono}>{m.member_id}</span>
+                  <MemberName code={m.member_id} names={names} />
                   <span className={styles.roleName}>{m.main_roles.map((s) => STAGE_LABEL[s] ?? s).join(" + ")}</span>
                 </div>
                 <p className={styles.why}>
@@ -75,7 +78,7 @@ export default function RolesCard({ teamId }: { teamId: string }) {
             ))}
           </ul>
           {idle.length > 0 && (
-            <p className={styles.why}>No activity in this window: {idle.map((m) => m.member_id).join(", ")}</p>
+            <p className={styles.why}>No activity in this window: {idle.map((m) => names[m.member_id] ?? m.member_id).join(", ")}</p>
           )}
         </>
       )}

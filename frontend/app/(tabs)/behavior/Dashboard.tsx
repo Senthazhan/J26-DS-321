@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import PlotlyChart from "./PlotlyChart";
+import MemberName from "./MemberName";
 import RolesCard from "./RolesCard";
 import styles from "./c2.module.css";
 import {
@@ -23,7 +24,12 @@ function SeverityBadge({ severity, big = false }: { severity: Severity; big?: bo
 
 const pct = (x: number | undefined) => `${Math.round((x ?? 0) * 100)}%`;
 
-export default function Dashboard({ summary }: { summary: Summary }) {
+export default function Dashboard({ summary, names = {}, simulatedChat = true, version = 0 }: {
+  summary: Summary;
+  names?: Record<string, string>;   // member code -> name (real teams only)
+  simulatedChat?: boolean;
+  version?: number;
+}) {
   const mode = "light"; // the app shell is light; charts.ts also supports "dark" if the app adds it
   const stageChart = useMemo(
     () => stageBreakdownChart(summary.stage_breakdown, summary.lagging_stages, mode),
@@ -65,19 +71,19 @@ export default function Dashboard({ summary }: { summary: Summary }) {
         <PlotlyChart data={stageChart.data} layout={stageChart.layout} ariaLabel="Bar chart of work share per lifecycle stage" />
       </section>
 
-      <RolesCard teamId={summary.team_id} />
+      <RolesCard teamId={summary.team_id} names={names} version={version} />
 
       <section className={styles.card} aria-labelledby="roles-title">
         <h2 id="roles-title" className={styles.cardTitle}>Role changes over time and team talk</h2>
         <p className={styles.cardNote}>
           Current role = biggest smoothed stage share. Chat measures follow Group Communication Analysis
-          (chat data is simulated for these public repositories).
+          {simulatedChat ? " (chat data is simulated for these public repositories)." : " (from the in-app team chat)."}
         </p>
         <ul className={styles.memberList}>
           {summary.members.map((m) => (
             <li key={m.member_id} className={styles.memberItem}>
               <div className={styles.memberHead}>
-                <span className={styles.mono}>{m.member_id}</span>
+                <MemberName code={m.member_id} names={names} />
                 <span className={styles.roleName}>
                   {m.dominant_role ? STAGE_LABEL[m.dominant_role] ?? m.dominant_role : "No role yet"}
                 </span>
