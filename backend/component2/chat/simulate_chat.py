@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 
 from component2.config import CHAT_DIR
 from component2.db import connect
+from component2.research_teams import research_team_ids
 
 SEED = 11
 
@@ -97,7 +98,7 @@ def main():
     rng = random.Random(SEED)
     conn = connect()
     labels = stage_of_each_activity(conn)
-    teams = [t for (t,) in conn.execute("SELECT DISTINCT team_id FROM activities ORDER BY team_id").fetchall()]
+    teams = research_team_ids(conn)          # never add simulated chat to a real team
     CHAT_DIR.mkdir(parents=True, exist_ok=True)
     for team in teams:
         rows = conn.execute("SELECT activity_id, member_id, ts FROM activities "

@@ -78,7 +78,9 @@ class Connection:
                 print(f"NOTE: DATABASE_URL is empty - using local SQLite file {DB_PATH}")
                 _warned_sqlite = True
             DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-            self.raw = sqlite3.connect(DB_PATH)
+            # FastAPI may run one request's dependencies on different worker threads; the connection
+            # is still used by one request at a time, so sharing it across threads is safe
+            self.raw = sqlite3.connect(DB_PATH, check_same_thread=False)
 
     def _sql(self, sql):
         # SQLite writes placeholders as ?, PostgreSQL (psycopg) as %s

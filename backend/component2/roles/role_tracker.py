@@ -28,6 +28,7 @@ import numpy as np
 from component2.config import STAGES
 from component2.db import connect, save_roles
 from component2.embedder import embed
+from component2.research_teams import research_team_ids
 
 ALPHA = 0.5            # EMA weight of the newest week (0.5 = this week and the past count equally)
 MIN_WEEKS_FOR_SHIFT = 2
@@ -148,7 +149,7 @@ def track_team(conn, team_id, labels):
 def main():
     conn = connect()
     labels = stage_labels(conn)
-    teams = [t for (t,) in conn.execute("SELECT DISTINCT team_id FROM activities ORDER BY team_id").fetchall()]
+    teams = research_team_ids(conn)          # real teams are tracked by buddy.sync
     for team in teams:
         rows = track_team(conn, team, labels)
         save_roles(conn, rows)

@@ -1,67 +1,106 @@
-// import { PagePlaceholder } from "@/components/page-placeholder"
-
-// export default function Page() {
-//   return <PagePlaceholder id="behavior" />
-// }
-
 "use client";
 // Behavior tab (Component 2): open http://localhost:3000/behavior
-import { useEffect, useState } from "react";
+// The team comes from the header's team picker; data goes through /app (access-checked).
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { API } from "./api";
+import { Button } from "@/components/ui";
+import { api, memberNames, shortDate, type SyncStatus, type TeamDetail } from "@/lib/api";
+import { useSession } from "@/lib/session";
 import Dashboard from "./Dashboard";
 import styles from "./c2.module.css";
-import type { Summary, TeamInfo } from "./types";
+import type { Summary } from "./types";
+
+function SyncPanel({ teamId, canSync, onDone }: { teamId: string; canSync: boolean; onDone: () => void }) {
+  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [error, setError] = useState("");
+  const wasRunning = useRef(false);
+
+  const poll = useCallback(async () => {
+    const s = await api<SyncStatus>(`/app/teams/${encodeURIComponent(teamId)}/sync`);
+    setStatus(s);
+    if (wasRunning.current && s.status !== "running") onDone();
+    wasRunning.current = s.status === "running";
+  }, [teamId, onDone]);
+
+  useEffect(() => {
+    wasRunning.current = false;
+    poll().catch((e) => setError(e.message));
+  }, [poll]);
+
+  useEffect(() => {
+    if (status?.status !== "running") return;
+    const id = setInterval(() => poll().catch(() => {}), 3000);
+    return () => clearInterval(id);
+  }, [status?.status, poll]);
+
+  const start = async () => {
+    setError("");
+    try {
+      setStatus(await api<SyncStatus>(`/app/teams/${encodeURIComponent(teamId)}/sync`, { method: "POST" }));
+      wasRunning.current = true;
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const running = status?.status === "running";
+  return (
+    <section className={styles.card} aria-live="polite">
+      <div className={styles.driftHead}>
+        <h2 className={styles.cardTitle}>Repository sync</h2>
+        {canSync && <Button onClick={start} disabled={running}>{running ? "Syncing…" : "Sync now"}</Button>}
+      </div>
+      <p className={styles.cardNote}>
+        Last synced: {shortDate(status?.last_synced)}.{" "}
+        {status?.status === "error" ? <span className={styles.error}>Last sync failed: {status.message}</span> : status?.message}
+      </p>
+      {error && <p className={styles.error} role="alert">{error}</p>}
+    </section>
+  );
+}
 
 export default function BehaviorPage() {
-  const [teams, setTeams] = useState<TeamInfo[]>([]);
-  const [team, setTeam] = useState("");
+  const { team, refreshTeams } = useSession();
   const [days, setDays] = useState(30);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [detail, setDetail] = useState<TeamDetail | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [version, setVersion] = useState(0);         // bumped after a sync to reload everything
 
-  // 1) Load the list of teams once
-  useEffect(() => {
-    fetch(`${API}/c2/teams`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`API error ${r.status}`))))
-      .then((list: TeamInfo[]) => {
-        setTeams(list);
-        if (list.length) setTeam(list[0].team_id);
-        else setLoading(false);
-      })
-      .catch(() => {
-        setError(`Could not reach the Component 2 API at ${API}. Is "uvicorn main:app" running?`);
-        setLoading(false);
-      });
-  }, []);
+  const teamId = team?.team_id;
 
-  // 2) Load the chosen team's summary whenever the team or window changes
   useEffect(() => {
-    if (!team) return;
+    if (!teamId) return;
+    api<TeamDetail>(`/app/teams/${encodeURIComponent(teamId)}`).then(setDetail).catch(() => setDetail(null));
+  }, [teamId, version]);
+
+  useEffect(() => {
+    if (!teamId) return;
     setLoading(true);
     setError("");
-    fetch(`${API}/c2/teams/${encodeURIComponent(team)}/summary?days=${days}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`API error ${r.status}`))))
-      .then((s: Summary) => setSummary(s))
-      .catch((e: Error) => setError(e.message))
+    api<Summary>(`/app/teams/${encodeURIComponent(teamId)}/behavior/summary?days=${days}`)
+      .then(setSummary)
+      .catch((e: Error) => {
+        setSummary(null);
+        setError(e.message);
+      })
       .finally(() => setLoading(false));
-  }, [team, days]);
+  }, [teamId, days, version]);
+
+  const onSynced = useCallback(() => {
+    setVersion((v) => v + 1);
+    refreshTeams().catch(() => {});
+  }, [refreshTeams]);
+
+  if (!team) return null;
 
   return (
     <div className={styles.root}>
       <header className={styles.header}>
         <h1 className={styles.title}>Behavior</h1>
-        <p className={styles.subtitle}>Lifecycle stages, plan drift and member roles</p>
+        <p className={styles.subtitle}>Lifecycle stages, plan drift and member roles · {team.name}</p>
         <div className={styles.filters}>
-          <label>
-            Team
-            <select value={team} onChange={(e) => setTeam(e.target.value)} disabled={!teams.length}>
-              {teams.map((t) => (
-                <option key={t.team_id} value={t.team_id}>{t.team_id}</option>
-              ))}
-            </select>
-          </label>
           <label>
             Window
             <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
@@ -73,10 +112,13 @@ export default function BehaviorPage() {
         </div>
       </header>
 
-      {error && <p className={`${styles.state} ${styles.error}`} role="alert">{error}</p>}
+      {!team.is_research && <SyncPanel teamId={team.team_id} canSync={team.my_role !== "viewer"} onDone={onSynced} />}
+
+      {error && <p className={styles.state} role="status">{error}</p>}
       {!error && loading && <p className={styles.state}>Loading…</p>}
-      {!error && !loading && summary && <Dashboard summary={summary} />}
-      {!error && !loading && !summary && <p className={styles.state}>No teams found in the database yet.</p>}
+      {!error && !loading && summary && (
+        <Dashboard summary={summary} names={memberNames(detail)} simulatedChat={team.is_research} version={version} />
+      )}
     </div>
   );
 }
